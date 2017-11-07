@@ -4,7 +4,9 @@
   "description": "A simple multisig contract tool for Ethereum",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js",
+    "fix": "eslint --fix",
+    "lint": "eslint"
   },
   "repository": {
     "type": "git",
@@ -21,5 +23,17 @@
     "url": "https://github.com/alex-miller-0/simple-multisig/issues"
   },
   "homepage": "https://github.com/alex-miller-0/simple-multisig#readme",
-  "dependencies": {}
+  "dependencies": {
+    "bip39": "^2.4.0",
+    "ethereumjs-testrpc": "^6.0.1",
+    "ethereumjs-wallet": "^0.6.0",
+    "ethjs-provider-http": "^0.1.6",
+    "ethjs-query": "^0.3.1",
+    "ethjs-rpc": "^0.1.7"
+  },
+  "devDependencies": {
+    "eslint": "4.4.1",
+    "eslint-config-airbnb-base": "11.3.1",
+    "eslint-plugin-import": "2.7.0"
+  }
 }

@@ -1,5 +1,7 @@
-var SimpleMultisig = artifacts.require("./SimpleMultisig.sol");
+/* global artifacts */
 
-module.exports = function(deployer) {
+const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
+
+module.exports = (deployer) => {
   deployer.deploy(SimpleMultisig);
 };
