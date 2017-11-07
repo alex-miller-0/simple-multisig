@@ -1,0 +1,25 @@
+{
+  "name": "simple-multisig",
+  "version": "0.0.0",
+  "description": "A simple multisig contract tool for Ethereum",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alex-miller-0/simple-multisig.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "multi-signature",
+    "contract"
+  ],
+  "author": "Alex Miller",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/alex-miller-0/simple-multisig/issues"
+  },
+  "homepage": "https://github.com/alex-miller-0/simple-multisig#readme",
+  "dependencies": {}
+}
