@@ -1,14 +1,20 @@
 /* eslint-env mocha */
 /* global artifacts assert contract */
 
-const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
-const input = require('../input.json');
+const bip39 = require('bip39');
 const BN = require('bn.js');
-const HttpProvider = require('ethjs-provider-http');
-// const EthRPC = require('ethjs-rpc');
 const EthQuery = require('ethjs-query');
+const hdkey = require('ethereumjs-wallet/hdkey');
+const HttpProvider = require('ethjs-provider-http');
+const input = require('../input.json');
+const leftPad = require('left-pad');
+const secrets = require('../secrets.json');
+const sha3 = require('solidity-sha3').default;
+const util = require('ethereumjs-util');
+// const tx = require('ethereumjs-tx');
+// const wallet = require('eth-lightwallet');
 
-// const ethRPC = new EthRPC(new HttpProvider('http://localhost:8545'));
+const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
 const ethQuery = new EthQuery(new HttpProvider('http://localhost:8545'));
 
 contract('SimpleMultisig', (accounts) => {
@@ -21,6 +27,76 @@ contract('SimpleMultisig', (accounts) => {
     const addr = await contract.ownersArr.call(i);
     addrs.push(addr);
     return getOwners(contract, length, i + 1, addrs);
+  }
+
+  // Generate the first N wallets of a HD wallet
+  function generateFirstWallets(n, wallets, hdPathIndex) {
+    const hdwallet = hdkey.fromMasterSeed(bip39.mnemonicToSeed(secrets.mnemonic));
+    const node = hdwallet.derivePath(secrets.hdPath + hdPathIndex.toString());
+    const secretKey = node.getWallet().getPrivateKeyString();
+    const addr = node.getWallet().getAddressString();
+    wallets.push([addr, secretKey]);
+
+    const nextHDPathIndex = hdPathIndex + 1;
+    if (nextHDPathIndex === n) {
+      return wallets;
+    }
+    return generateFirstWallets(n, wallets, nextHDPathIndex);
+  }
+
+  // Sort a set of wallets of form [addr, pkey] based on their addresses
+  function sortWallets(wallets) {
+    function sortF(a, b) {
+      if (a[0] === b[0]) return 0;
+      return (a[0] < b[0]) ? -1 : 1;
+    }
+    return wallets.sort(sortF);
+  }
+
+  // Get signatures on a peice of data from the first n accounts
+  function getSigs(msg, n, i, wallets, sigs) {
+    if (i === n) { return sigs; }
+    const msgBuf = Buffer.from(msg.slice(2), 'hex');
+    const pkey = Buffer.from(wallets[i][1].slice(2), 'hex');
+    const sig = util.ecsign(msgBuf, pkey);
+    sigs.push({ r: sig.r.toString('hex'), s: sig.s.toString('hex'), v: sig.v });
+    return getSigs(msg, n, i + 1, wallets, sigs);
+  }
+
+  // Given an array of signature objects (r, s, v), format them for solidity
+  function formatSoliditySigs(sigs) {
+    const newSigs = { r: [], s: [], v: [] };
+    for (let i = 0; i < sigs.length; i += 1) {
+      newSigs.r.push(leftPad(sigs[i].r, 64, '0'));
+      newSigs.s.push(leftPad(sigs[i].s, 64, '0'));
+      newSigs.v.push(leftPad(sigs[i].v.toString(16), 64, '0'));
+    }
+    return newSigs;
+  }
+
+  // Given a contract and some parameters, hash the message according to
+  // ERC191 (https://github.com/ethereum/EIPs/issues/191)
+  async function ERC191Hash(contract, destination, value, data) {
+    const nonce = await contract.nonce.call();
+    const MULTISIGADDR = leftPad(contract.address.slice(2), 64, '0');
+    const DESTINATION = leftPad(destination.slice(2), 64, '0');
+    const VALUE = leftPad(value.toString(16), 64, '0');
+    const DATA = data.slice(2) || '0';
+    const NONCE = leftPad(nonce.toString(16), 64, '0');
+    const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
+    return sha3(preHash);
+  }
+
+  // Get the N first signatures (from the HD wallet) for a message formatted
+  // via ERC191 to a set of params
+  async function getNFirstSigs(n, to, value, data) {
+    const multisig = await SimpleMultisig.deployed();
+    const hash = await ERC191Hash(multisig, to, value, data);
+    const wallets = generateFirstWallets(input.threshold, [], 0);
+    const sortedWallets = sortWallets(wallets);
+    const sigs = getSigs(hash, input.threshold, 0, sortedWallets, []);
+    const soliditySigs = formatSoliditySigs(sigs);
+    return soliditySigs;
   }
 
   it('Should check the input params', async () => {
@@ -43,5 +119,13 @@ contract('SimpleMultisig', (accounts) => {
     const balance = await ethQuery.getBalance(multisig.address);
     assert.notEqual(txHash.tx, null);
     assert.strictEqual(sendAmount.toString(10), balance.toString(10));
+  });
+
+  it('Should send ether with the threshold of signatures', async () => {
+    // const multisig = await SimpleMultisig.deployed();
+    const to = '0x0000000000000000000000000000000000000000';
+    const value = 100;
+    const data = '0x0';
+    const sigs = await getNFirstSigs(input.threshold, to, value, data);
   });
 });
