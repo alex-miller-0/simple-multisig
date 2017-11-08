@@ -58,6 +58,7 @@ contract('SimpleMultisig', (accounts) => {
     if (i === n) { return sigs; }
     const msgBuf = Buffer.from(msg.slice(2), 'hex');
     const pkey = Buffer.from(wallets[i][1].slice(2), 'hex');
+    console.log('signing', msg, 'from', wallets[i][0]);
     const sig = util.ecsign(msgBuf, pkey);
     sigs.push({ r: sig.r.toString('hex'), s: sig.s.toString('hex'), v: sig.v });
     return getSigs(msg, n, i + 1, wallets, sigs);
@@ -67,9 +68,10 @@ contract('SimpleMultisig', (accounts) => {
   function formatSoliditySigs(sigs) {
     const newSigs = { r: [], s: [], v: [] };
     for (let i = 0; i < sigs.length; i += 1) {
-      newSigs.r.push(leftPad(sigs[i].r, 64, '0'));
-      newSigs.s.push(leftPad(sigs[i].s, 64, '0'));
-      newSigs.v.push(leftPad(sigs[i].v.toString(16), 64, '0'));
+      newSigs.r.push(`0x${leftPad(sigs[i].r, 64, '0')}`);
+      newSigs.s.push(`0x${leftPad(sigs[i].s, 64, '0')}`);
+      // newSigs.v.push(leftPad(sigs[i].v.toString(16), 64, '0'));
+      newSigs.v.push(sigs[i].v);
     }
     return newSigs;
   }
@@ -78,12 +80,14 @@ contract('SimpleMultisig', (accounts) => {
   // ERC191 (https://github.com/ethereum/EIPs/issues/191)
   async function ERC191Hash(contract, destination, value, data) {
     const nonce = await contract.nonce.call();
-    const MULTISIGADDR = leftPad(contract.address.slice(2), 64, '0');
+    // const MULTISIGADDR = leftPad(contract.address.slice(2), 64, '0');
     const DESTINATION = leftPad(destination.slice(2), 64, '0');
     const VALUE = leftPad(value.toString(16), 64, '0');
-    const DATA = data.slice(2) || '0';
+    const DATA = data.length > 2 ? data.slice(2) : '0';
     const NONCE = leftPad(nonce.toString(16), 64, '0');
-    const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
+    console.log('DESTINATION', DESTINATION, 'VALUE', VALUE, 'DATA', DATA, 'NONCE', NONCE);
+    // const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
+    const preHash = '0x1900';
     return sha3(preHash);
   }
 
@@ -92,11 +96,19 @@ contract('SimpleMultisig', (accounts) => {
   async function getNFirstSigs(n, to, value, data) {
     const multisig = await SimpleMultisig.deployed();
     const hash = await ERC191Hash(multisig, to, value, data);
+    console.log('hash', hash);
     const wallets = generateFirstWallets(input.threshold, [], 0);
     const sortedWallets = sortWallets(wallets);
     const sigs = getSigs(hash, input.threshold, 0, sortedWallets, []);
     const soliditySigs = formatSoliditySigs(sigs);
     return soliditySigs;
+  }
+
+  // Given the instantiation params and the signature, ecrecover the address.
+  async function getExpectedAddr(contract, destination, value, data, v, r, s) {
+    const hash = await ERC191Hash(contract, destination, value, data);
+    const pubkey = util.ecrecover(Buffer.from(hash.slice(2), 'hex'), v, r, s);
+    return `0x${util.publicToAddress(pubkey).toString('hex')}`;
   }
 
   it('Should check the input params', async () => {
@@ -122,10 +134,19 @@ contract('SimpleMultisig', (accounts) => {
   });
 
   it('Should send ether with the threshold of signatures', async () => {
-    // const multisig = await SimpleMultisig.deployed();
-    const to = '0x0000000000000000000000000000000000000000';
+    const multisig = await SimpleMultisig.deployed();
+    const to = '0xf3ef52a1f8e11c406f6ea1959d2b72b74598037b';
     const value = 100;
-    const data = '0x0';
+    const data = 0;
     const sigs = await getNFirstSigs(input.threshold, to, value, data);
+    console.log('multisig-addr2', multisig.address);
+    console.log('sigs', sigs);
+    // const receipt = await multisig.execute(sigs.v, sigs.r, sigs.s, to, value,
+    // '0x', { from: accounts[0], gasLimit: 1000000 });
+    const addr = await multisig.getSigAddr(sigs.v[0], sigs.r[0], sigs.s[0], to, value, '0x');
+    console.log('got addr', addr);
+    const expectedAddr = await getExpectedAddr(multisig, to, value, data, sigs.v[0],
+      sigs.r[0], sigs.s[0]);
+    console.log('expectedAddr', expectedAddr);
   });
 });
