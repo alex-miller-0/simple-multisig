@@ -58,7 +58,6 @@ contract('SimpleMultisig', (accounts) => {
     if (i === n) { return sigs; }
     const msgBuf = Buffer.from(msg.slice(2), 'hex');
     const pkey = Buffer.from(wallets[i][1].slice(2), 'hex');
-    console.log('signing', msg, 'from', wallets[i][0]);
     const sig = util.ecsign(msgBuf, pkey);
     sigs.push({ r: sig.r.toString('hex'), s: sig.s.toString('hex'), v: sig.v });
     return getSigs(msg, n, i + 1, wallets, sigs);
@@ -80,14 +79,16 @@ contract('SimpleMultisig', (accounts) => {
   // ERC191 (https://github.com/ethereum/EIPs/issues/191)
   async function ERC191Hash(contract, destination, value, data) {
     const nonce = await contract.nonce.call();
-    // const MULTISIGADDR = leftPad(contract.address.slice(2), 64, '0');
-    const DESTINATION = leftPad(destination.slice(2), 64, '0');
+    const MULTISIGADDR = contract.address.slice(2);
+    const DESTINATION = destination.slice(2);
     const VALUE = leftPad(value.toString(16), 64, '0');
     const DATA = data.length > 2 ? data.slice(2) : '0';
     const NONCE = leftPad(nonce.toString(16), 64, '0');
-    console.log('DESTINATION', DESTINATION, 'VALUE', VALUE, 'DATA', DATA, 'NONCE', NONCE);
+    console.log('MULTISIGADDR', MULTISIGADDR, 'DESTINATION', DESTINATION, 'VALUE', VALUE, 'DATA', DATA, 'NONCE', NONCE);
     // const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
-    const preHash = '0x1900';
+    const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${NONCE}`;
+
+    console.log('preHash', preHash);
     return sha3(preHash);
   }
 
@@ -96,7 +97,6 @@ contract('SimpleMultisig', (accounts) => {
   async function getNFirstSigs(n, to, value, data) {
     const multisig = await SimpleMultisig.deployed();
     const hash = await ERC191Hash(multisig, to, value, data);
-    console.log('hash', hash);
     const wallets = generateFirstWallets(input.threshold, [], 0);
     const sortedWallets = sortWallets(wallets);
     const sigs = getSigs(hash, input.threshold, 0, sortedWallets, []);
@@ -139,8 +139,6 @@ contract('SimpleMultisig', (accounts) => {
     const value = 100;
     const data = 0;
     const sigs = await getNFirstSigs(input.threshold, to, value, data);
-    console.log('multisig-addr2', multisig.address);
-    console.log('sigs', sigs);
     // const receipt = await multisig.execute(sigs.v, sigs.r, sigs.s, to, value,
     // '0x', { from: accounts[0], gasLimit: 1000000 });
     const addr = await multisig.getSigAddr(sigs.v[0], sigs.r[0], sigs.s[0], to, value, '0x');
