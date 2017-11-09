@@ -14,6 +14,5 @@ module.exports = (deployer, network, accounts) => {
     const owners = accounts.slice(0, 5).sort();
     deployer.deploy(SimpleMultisig, threshold, owners);
     deployer.deploy(HumanStandardToken, 1000, 'TestToken', 0, 'TT');
-    console.log('deploy me?');
   }
 };
