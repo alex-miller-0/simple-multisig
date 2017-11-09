@@ -20,6 +20,10 @@ const ethQuery = new EthQuery(new HttpProvider('http://localhost:8545'));
 contract('SimpleMultisig', (accounts) => {
   assert(accounts.length > 0);
 
+  function isEVMException(err) {
+    return err.toString().includes('VM Exception');
+  }
+
   // You can only get a single piece of data based on an index from a solidity
   // array. This will return an unsorted array of accounts for the multisig.
   async function getOwners(contract, length, i, addrs) {
@@ -101,9 +105,9 @@ contract('SimpleMultisig', (accounts) => {
   async function getNFirstSigs(n, to, value, data) {
     const multisig = await SimpleMultisig.deployed();
     const hash = await ERC191Hash(multisig, to, value, data);
-    const wallets = generateFirstWallets(input.threshold, [], 0);
+    const wallets = generateFirstWallets(n, [], 0);
     const sortedWallets = sortWallets(wallets);
-    const sigs = getSigs(hash, input.threshold, 0, sortedWallets, []);
+    const sigs = getSigs(hash, n, 0, sortedWallets, []);
     const soliditySigs = formatSoliditySigs(sigs);
     return soliditySigs;
   }
@@ -139,12 +143,40 @@ contract('SimpleMultisig', (accounts) => {
 
   it('Should send ether with the threshold of signatures (no data)', async () => {
     const multisig = await SimpleMultisig.deployed();
-    const to = '0xf3ef52a1f8e11c406f6ea1959d2b72b74598037b';
+    const to = sha3(Math.random(1)).slice(0, 42);
     const value = 100;
     const data = '0x';
     const sigs = await getNFirstSigs(input.threshold, to, value, data);
     await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
     const balance = await ethQuery.getBalance(to);
     assert.strictEqual(value.toString(), balance.toString(10));
+  });
+
+  it('Should send ether with lower than the threshold of signatures (no data)', async () => {
+    const multisig = await SimpleMultisig.deployed();
+    const to = sha3(Math.random(2)).slice(0, 42);
+    const value = 100;
+    const data = '0x';
+    const sigs = await getNFirstSigs(input.threshold - 1, to, value, data);
+    try {
+      await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
+    } catch (err) {
+      const errMsg = err.toString();
+      assert(isEVMException(err), errMsg);
+    }
+  });
+
+  it('Should send ether with more than the threshold of signatures (no data)', async () => {
+    const multisig = await SimpleMultisig.deployed();
+    const to = sha3(Math.random(2)).slice(0, 42);
+    const value = 100;
+    const data = '0x';
+    const sigs = await getNFirstSigs(input.threshold + 1, to, value, data);
+    try {
+      await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
+    } catch (err) {
+      const errMsg = err.toString();
+      assert(isEVMException(err), errMsg);
+    }
   });
 });
