@@ -82,13 +82,17 @@ contract('SimpleMultisig', (accounts) => {
     const MULTISIGADDR = contract.address.slice(2);
     const DESTINATION = destination.slice(2);
     const VALUE = leftPad(value.toString(16), 64, '0');
-    const DATA = data.length > 2 ? data.slice(2) : '0';
+    const DATA = data && data.length > 2 ? data.slice(2) : null;
     const NONCE = leftPad(nonce.toString(16), 64, '0');
-    console.log('MULTISIGADDR', MULTISIGADDR, 'DESTINATION', DESTINATION, 'VALUE', VALUE, 'DATA', DATA, 'NONCE', NONCE);
-    // const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
-    const preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${NONCE}`;
+    let preHash;
 
-    console.log('preHash', preHash);
+    // data is encoded as bytes in solidity (the last param). If there is no
+    // data, it should not be included at all.
+    if (DATA !== null && DATA !== '0') {
+      preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${DATA}${NONCE}`;
+    } else {
+      preHash = `0x1900${MULTISIGADDR}${DESTINATION}${VALUE}${NONCE}`;
+    }
     return sha3(preHash);
   }
 
@@ -105,11 +109,11 @@ contract('SimpleMultisig', (accounts) => {
   }
 
   // Given the instantiation params and the signature, ecrecover the address.
-  async function getExpectedAddr(contract, destination, value, data, v, r, s) {
-    const hash = await ERC191Hash(contract, destination, value, data);
-    const pubkey = util.ecrecover(Buffer.from(hash.slice(2), 'hex'), v, r, s);
-    return `0x${util.publicToAddress(pubkey).toString('hex')}`;
-  }
+  // async function getExpectedAddr(contract, destination, value, data, v, r, s) {
+  //   const hash = await ERC191Hash(contract, destination, value, data);
+  //   const pubkey = util.ecrecover(Buffer.from(hash.slice(2), 'hex'), v, r, s);
+  //   return `0x${util.publicToAddress(pubkey).toString('hex')}`;
+  // }
 
   it('Should check the input params', async () => {
     const multisig = await SimpleMultisig.deployed();
@@ -133,18 +137,14 @@ contract('SimpleMultisig', (accounts) => {
     assert.strictEqual(sendAmount.toString(10), balance.toString(10));
   });
 
-  it('Should send ether with the threshold of signatures', async () => {
+  it('Should send ether with the threshold of signatures (no data)', async () => {
     const multisig = await SimpleMultisig.deployed();
     const to = '0xf3ef52a1f8e11c406f6ea1959d2b72b74598037b';
     const value = 100;
-    const data = 0;
+    const data = '0x';
     const sigs = await getNFirstSigs(input.threshold, to, value, data);
-    // const receipt = await multisig.execute(sigs.v, sigs.r, sigs.s, to, value,
-    // '0x', { from: accounts[0], gasLimit: 1000000 });
-    const addr = await multisig.getSigAddr(sigs.v[0], sigs.r[0], sigs.s[0], to, value, '0x');
-    console.log('got addr', addr);
-    const expectedAddr = await getExpectedAddr(multisig, to, value, data, sigs.v[0],
-      sigs.r[0], sigs.s[0]);
-    console.log('expectedAddr', expectedAddr);
+    await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
+    const balance = await ethQuery.getBalance(to);
+    assert.strictEqual(value.toString(), balance.toString(10));
   });
 });
