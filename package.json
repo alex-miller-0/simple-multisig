@@ -4,6 +4,7 @@
   "description": "A simple multisig contract tool for Ethereum",
   "main": "index.js",
   "scripts": {
+    "postinstall": "truffle install tokens",
     "test": "node test.js",
     "fix": "eslint --fix",
     "lint": "eslint"
