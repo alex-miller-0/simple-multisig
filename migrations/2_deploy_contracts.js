@@ -1,6 +1,8 @@
 /* global artifacts */
 
 const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
+const HumanStandardToken = artifacts.require('tokens/HumanStandardToken.sol');
+
 const input = require('../input.json');
 
 module.exports = (deployer, network, accounts) => {
@@ -11,5 +13,7 @@ module.exports = (deployer, network, accounts) => {
     const threshold = 3;
     const owners = accounts.slice(0, 5).sort();
     deployer.deploy(SimpleMultisig, threshold, owners);
+    deployer.deploy(HumanStandardToken, 1000, 'TestToken', 0, 'TT');
+    console.log('deploy me?');
   }
 };

@@ -14,6 +14,7 @@ const util = require('ethereumjs-util');
 // const wallet = require('eth-lightwallet');
 
 const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
+const HumanStandardToken = artifacts.require('tokens/HumanStandardToken.sol');
 const ethQuery = new EthQuery(new HttpProvider('http://localhost:8545'));
 let threshold;
 let owners;
@@ -177,5 +178,10 @@ contract('SimpleMultisig', (accounts) => {
       const errMsg = err.toString();
       assert(isEVMException(err), errMsg);
     }
+  });
+
+  it('Should send a token to the multisig', async () => {
+    const token = await HumanStandardToken.deployed();
+    console.log('token.addresss', token.address);
   });
 });
