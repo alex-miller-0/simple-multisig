@@ -39,11 +39,5 @@ contract SimpleMultiSig {
     require(destination.call.value(value)(data));
   }
 
-  function getSigAddr(uint8 sigV, bytes32 sigR, bytes32 sigS, address destination, uint value, bytes data) public constant returns (address) {
-    bytes32 txHash = keccak256(byte(0x19), byte(0), address(this), destination, value, data, nonce);
-    address recovered = ecrecover(txHash, sigV, sigR, sigS);
-    return recovered;
-  }
-
   function () public payable {}
 }

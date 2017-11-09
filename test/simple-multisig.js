@@ -2,11 +2,10 @@
 /* global artifacts assert contract */
 
 const bip39 = require('bip39');
-const BN = require('bn.js');
+// const BN = require('bn.js');
 const EthQuery = require('ethjs-query');
 const hdkey = require('ethereumjs-wallet/hdkey');
 const HttpProvider = require('ethjs-provider-http');
-const input = require('../input.json');
 const leftPad = require('left-pad');
 const secrets = require('../secrets.json');
 const sha3 = require('solidity-sha3').default;
@@ -16,6 +15,8 @@ const util = require('ethereumjs-util');
 
 const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
 const ethQuery = new EthQuery(new HttpProvider('http://localhost:8545'));
+let threshold;
+let owners;
 
 contract('SimpleMultisig', (accounts) => {
   assert(accounts.length > 0);
@@ -26,11 +27,14 @@ contract('SimpleMultisig', (accounts) => {
 
   // You can only get a single piece of data based on an index from a solidity
   // array. This will return an unsorted array of accounts for the multisig.
-  async function getOwners(contract, length, i, addrs) {
-    if (i === length) { return addrs; }
-    const addr = await contract.ownersArr.call(i);
-    addrs.push(addr);
-    return getOwners(contract, length, i + 1, addrs);
+  async function getOwners(contract, i, addrs) {
+    try {
+      const addr = await contract.ownersArr.call(i);
+      addrs.push(addr);
+      return getOwners(contract, i + 1, addrs);
+    } catch (err) {
+      return addrs;
+    }
   }
 
   // Generate the first N wallets of a HD wallet
@@ -40,9 +44,8 @@ contract('SimpleMultisig', (accounts) => {
     const secretKey = node.getWallet().getPrivateKeyString();
     const addr = node.getWallet().getAddressString();
     wallets.push([addr, secretKey]);
-
     const nextHDPathIndex = hdPathIndex + 1;
-    if (nextHDPathIndex === n) {
+    if (nextHDPathIndex >= n) {
       return wallets;
     }
     return generateFirstWallets(n, wallets, nextHDPathIndex);
@@ -119,17 +122,13 @@ contract('SimpleMultisig', (accounts) => {
   //   return `0x${util.publicToAddress(pubkey).toString('hex')}`;
   // }
 
-  it('Should check the input params', async () => {
+  it('Should get the params', async () => {
     const multisig = await SimpleMultisig.deployed();
-    const owners = await getOwners(multisig, input.owners.length, 0, []);
-    const threshold = await multisig.threshold.call();
-    const expectedThreshold = new BN(input.threshold);
-    const expectedOwners = input.owners.sort();
-    assert.strictEqual(owners.length, input.owners.length);
-    assert.strictEqual(threshold.toString(10), expectedThreshold.toString(10));
-    for (let i = 0; i < owners.length; i += 1) {
-      assert.strictEqual(owners[i], expectedOwners[i]);
-    }
+    owners = await getOwners(multisig, 0, []);
+    const thresholdTmp = await multisig.threshold.call();
+    threshold = parseInt(thresholdTmp.toString(10), 10);
+    const tmpAccounts = accounts.slice(0, 5).sort();
+    assert.strictEqual(owners[0], tmpAccounts[0]);
   });
 
   it('Should fund the wallet with some ether', async () => {
@@ -146,7 +145,7 @@ contract('SimpleMultisig', (accounts) => {
     const to = sha3(Math.random(1)).slice(0, 42);
     const value = 100;
     const data = '0x';
-    const sigs = await getNFirstSigs(input.threshold, to, value, data);
+    const sigs = await getNFirstSigs(threshold, to, value, data);
     await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
     const balance = await ethQuery.getBalance(to);
     assert.strictEqual(value.toString(), balance.toString(10));
@@ -157,7 +156,7 @@ contract('SimpleMultisig', (accounts) => {
     const to = sha3(Math.random(2)).slice(0, 42);
     const value = 100;
     const data = '0x';
-    const sigs = await getNFirstSigs(input.threshold - 1, to, value, data);
+    const sigs = await getNFirstSigs(threshold - 1, to, value, data);
     try {
       await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
     } catch (err) {
@@ -171,7 +170,7 @@ contract('SimpleMultisig', (accounts) => {
     const to = sha3(Math.random(2)).slice(0, 42);
     const value = 100;
     const data = '0x';
-    const sigs = await getNFirstSigs(input.threshold + 1, to, value, data);
+    const sigs = await getNFirstSigs(threshold + 1, to, value, data);
     try {
       await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
     } catch (err) {
