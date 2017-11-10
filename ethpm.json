@@ -1,0 +1,17 @@
+{
+  "package_name": "simple-multisig",
+  "version": "0.0.2",
+  "description": "Simple multi-signature wallet",
+  "authors": [
+    "Christian Lundkvist <christian.lundkvist@consensys.net>",
+    "Alex Miller <alex.miller@consensys.net>"
+  ],
+  "keywords": [
+    "ethereum",
+    "multisig",
+    "multisignature",
+    "multi-signature",
+    "wallet"
+  ],
+  "license": "MIT"
+}

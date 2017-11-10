@@ -203,10 +203,28 @@ contract('SimpleMultisig', (accounts) => {
     // transfer(address,uint256) abi -> a9059cbb
     const data = `0xa9059cbb${leftPad(recipient.slice(2), 64, '0')}${leftPad('1', 64, '0')}`;
     const sigs = await getNFirstSigs(threshold, to, value, data);
-    await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data, { gasLimit: 1000000 });
+    await multisig.execute(sigs.v, sigs.r, sigs.s, to, value, data);
     const balanceMultisig = await token.balanceOf.call(multisigAddr);
     const balanceRecipient = await token.balanceOf.call(recipient);
     assert.strictEqual('1', balanceRecipient.toString(10));
     assert.strictEqual('9', balanceMultisig.toString(10));
+  });
+
+  it('Should fail to call the token contract with less than threshold (data)', async () => {
+    const multisig = await SimpleMultisig.deployed();
+    const token = await Token.deployed();
+    const recipient = sha3(Math.random(2)).slice(0, 42);
+
+    const value = 0;
+    // transfer(address,uint256) abi -> a9059cbb
+    const data = `0xa9059cbb${leftPad(recipient.slice(2), 64, '0')}${leftPad('1', 64, '0')}`;
+
+    const sigs = await getNFirstSigs(threshold - 1, token.address, value, data);
+    try {
+      await multisig.execute(sigs.v, sigs.r, sigs.s, token.address, value, data);
+    } catch (err) {
+      const errMsg = err.toString();
+      assert(isEVMException(err), errMsg);
+    }
   });
 });
