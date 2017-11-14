@@ -6,13 +6,14 @@ const schema = require('../build/contracts/SimpleMultisig.json');
 const secrets = require('../secrets.json');
 const hdkey = require('ethereumjs-wallet/hdkey');
 const bip39 = require('bip39');
+const sha3 = require('solidity-sha3').default;
+
 const HDPATH = 'm/44\'/60\'/0\'/0/';
 
 function generateAccounts(mnemonic, hdPathIndex, totalToGenerate, accumulatedAddrs) {
   const hdwallet = hdkey.fromMasterSeed(bip39.mnemonicToSeed(mnemonic));
   const node = hdwallet.derivePath(HDPATH + hdPathIndex.toString());
   const addr = node.getWallet().getAddressString();
-  console.log('addr', addr)
   accumulatedAddrs.push({
     addr,
   });
@@ -34,10 +35,23 @@ const contract = new SimpleMultisig('http://localhost:8545', contractAddr);
 const accountsUnsorted = generateAccounts(secrets.mnemonic, 0, 5, []);
 const accounts = accountsUnsorted.sort();
 
-console.log('accounts[0]', accounts[0]);
+// Format the message to sign
+function formatMsg(destination, value, data) {
+  return new Promise((resolve, reject) => {
+    contract.ERC191Hash()
+  })
+}
+
+//============
+// SCRIPT
+//============
+
+const destination = sha3(Math.random(2)).slice(0, 42);
+const value = 10000;
+
 contract.isOwner(accounts[0].addr)
-.then((result) => {
-  console.log('result', result);
-})
-.catch((err) => { throw new Error(err); })
-// console.log('isOwner', isOwner);
+  .then((result) => {
+    console.log('result', result);
+    return contract.ERC191Hash({ destination: destination, value: value })
+  })
+  .catch((err) => { throw new Error(err); });
