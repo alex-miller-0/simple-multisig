@@ -5,6 +5,7 @@ contract SimpleMultiSig {
   uint public threshold;            // immutable state
   mapping (address => bool) isOwner; // immutable state
   address[] public ownersArr;        // immutable state
+  uint8 public numOwners;
 
   function SimpleMultiSig(uint threshold_, address[] owners_) public {
     require(owners_.length <= 10 && threshold_ <= owners_.length && threshold_ != 0);
@@ -16,6 +17,7 @@ contract SimpleMultiSig {
       lastAdd = owners_[i];
     }
     ownersArr = owners_;
+    numOwners = owners_.length;
     threshold = threshold_;
   }
 

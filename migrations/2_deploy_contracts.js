@@ -2,7 +2,6 @@
 
 const SimpleMultisig = artifacts.require('./SimpleMultisig.sol');
 const HumanStandardToken = artifacts.require('tokens/HumanStandardToken.sol');
-
 const input = require('../input.json');
 
 module.exports = (deployer, network, accounts) => {

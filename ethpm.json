@@ -1,6 +1,6 @@
 {
   "package_name": "simple-multisig",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Simple multi-signature wallet",
   "authors": [
     "Christian Lundkvist <christian.lundkvist@consensys.net>",
