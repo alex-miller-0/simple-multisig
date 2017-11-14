@@ -55,3 +55,6 @@ truffle.stderr.on('data', (data) => {
 truffle.on('exit', (code) => {
   process.exit(code);
 });
+
+
+exports.generateAccounts = generateAccounts;

@@ -1,4 +1,4 @@
-const HDWalletProvider = require("truffle-hdwallet-provider");
+const HDWalletProvider = require('truffle-hdwallet-provider');
 const mnemonic = require('./secrets.json').mnemonic;
 
 module.exports = {
@@ -10,12 +10,12 @@ module.exports = {
       gas: 4712388,
     },
     ropsten: {
-      provider: new HDWalletProvider(mnemonic, "https://ropsten.infura.io"),
+      provider: new HDWalletProvider(mnemonic, 'https://ropsten.infura.io'),
       network_id: '3',
       gas: 4712388,
     },
     mainnet: {
-      provider: new HDWalletProvider(mnemonic, "https://mainnet.infura.io"),
+      provider: new HDWalletProvider(mnemonic, 'https://mainnet.infura.io'),
       network_id: '3',
       gas: 4712388,
     },

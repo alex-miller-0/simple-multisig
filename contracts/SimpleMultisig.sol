@@ -1,13 +1,12 @@
 pragma solidity 0.4.18;
-contract SimpleMultiSig {
+contract SimpleMultisig {
 
   uint public nonce;                // (only) mutable state
   uint public threshold;            // immutable state
-  mapping (address => bool) isOwner; // immutable state
+  mapping (address => bool) public isOwner; // immutable state
   address[] public ownersArr;        // immutable state
-  uint8 public numOwners;
 
-  function SimpleMultiSig(uint threshold_, address[] owners_) public {
+  function SimpleMultisig(uint threshold_, address[] owners_) public {
     require(owners_.length <= 10 && threshold_ <= owners_.length && threshold_ != 0);
 
     address lastAdd = address(0);
@@ -17,7 +16,6 @@ contract SimpleMultiSig {
       lastAdd = owners_[i];
     }
     ownersArr = owners_;
-    numOwners = owners_.length;
     threshold = threshold_;
   }
 
