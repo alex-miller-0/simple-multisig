@@ -3,7 +3,6 @@
 const Promise = require('bluebird');
 const Web3 = require('web3');
 const HttpProvider = require('ethjs-provider-http');
-// const EthQuery = require('ethjs-query');
 const schema = require('./build/contracts/SimpleMultisig.json');
 const sha3 = require('solidity-sha3').default;
 const util = require('ethereumjs-util');
@@ -76,18 +75,19 @@ class SimpleMultisig {
 
   // Check if a given signature belongs to an owner
   // tdData = { destination, value, data }
-  isCosig(txData, v, r, s) {
+  isCosignature(txData, v, r, s) {
     return new Promise((resolve, reject) => {
       let hash;
       this.ERC191Hash(txData)
         .then((hash_) => {
           hash = hash_;
-          return util.ecrecover(hash, v, r, s);
+          return util.ecrecover(Buffer.from(hash.slice(2), 'hex'), v, Buffer.from(r, 'hex'), Buffer.from(s, 'hex'));
         })
         .then((pubKey) => {
-          console.log('got public key', pubKey);
-          resolve(pubKey);
+          const signer = util.publicToAddress(pubKey);
+          return this.isOwner(signer.toString('hex'));
         })
+        .then((isOwner_) => { resolve(isOwner_); })
         .catch((err) => { reject(err); });
     });
   }
